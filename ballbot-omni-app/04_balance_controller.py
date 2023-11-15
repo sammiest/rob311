@@ -244,8 +244,8 @@ MAX_PLANAR_DUTY = 0.8
 
 # Proportional gains for the stability controllers (X-Z and Y-Z plane)
 
-KP_THETA_X = 9.2                                   # Adjust until the system balances
-KP_THETA_Y = 10                                  # Adjust until the system balances
+KP_THETA_X =  8                                  # Adjust until the system balances
+KP_THETA_Y = 8                                  # Adjust until the system balances
 Ki_x = 5
 Ki_y = 5
 
@@ -378,6 +378,7 @@ if __name__ == "__main__":
         # Body lean angles
         theta_x = (states['theta_roll'])
         theta_y = (states['theta_pitch'])
+        theta_z = (states['theta_yaw'])
 
         # Controller error terms
         error_x = desired_theta_x - theta_x
@@ -391,11 +392,14 @@ if __name__ == "__main__":
         # Compute motor torques (T1, T2, and T3) with Tx, Ty, and Tz
 
         # Proportional controller
-        Tx = KP_THETA_X * error_x
-        Ty = KP_THETA_Y * error_y
+        Tx = 0
+        Ty = 0 
+      #  Tx = KP_THETA_X * error_x
+       # Ty = KP_THETA_Y * error_y
         # Tx = KP_THETA_X * error_x + Ki_x * error_x_sum
         # Ty = KP_THETA_Y * error_y + Ki_y * error_y_sum
-        Tz = rob311_bt_controller.tz_demo_1
+        # Tz = rob311_bt_controller.tz_demo_1
+        Tz = 3
         print("Tz Demo 1: ", rob311_bt_controller.tz_demo_1)
 
         # ---------------------------------------------------------
@@ -425,7 +429,7 @@ if __name__ == "__main__":
         commands['motor_3_duty'] = T3  
 
         # Construct the data matrix for saving - you can add more variables by replicating the format below
-        data = [i] + [t_now] + [theta_x] + [theta_y] + [T1] + [T2] + [T3] + [phi_x] + [phi_y] + [phi_z] + [psi_1] + [psi_2] + [psi_3]
+        data = [i] + [t_now] + [theta_x] + [theta_y]  + [theta_z] + [T1] + [T2] + [T3] + [phi_x] + [phi_y] + [phi_z] + [psi_1] + [psi_2] + [psi_3]
         dl.appendData(data)
 
         print("Iteration no. {}, THETA X: {:.2f}, THETA Y: {:.2f}".format(i, theta_x, theta_y))
