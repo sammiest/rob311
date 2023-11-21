@@ -239,22 +239,18 @@ if __name__ == "__main__":
         dpsi_2 = states['dpsi_2']
         dpsi_3 = states['dpsi_3']
         
-        
         #########################
         # YOUR CODE GOES HERE
         # Wheel Rotations
         #########################
-        psi_1 = states['psi_1']
-        psi_2 = states['psi_2']
-        psi_3 = states['psi_3']
-        print(theta_x, " ", theta_y, " ", psi_1, psi_2, psi_3)
 
         # Construct the data matrix for saving - Add wheel speed and rotations by replicating the format below
         #########################
         # MODIFY THE LINE BELOW
-        data = [i, t_now, theta_x, theta_y, dpsi_1, dpsi_2, dpsi_3, psi_1, psi_2, psi_3]
+        data = [i, t_now, theta_x, theta_y]
         #########################
-        
+        print(theta_x, theta_y)
+
         dl.appendData(data)
 
     print("Saving data...")

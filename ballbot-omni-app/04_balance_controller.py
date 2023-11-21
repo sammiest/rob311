@@ -7,7 +7,7 @@ from MBot.Messages.message_defs import mo_states_dtype, mo_cmds_dtype, mo_pid_pa
 from MBot.SerialProtocol.protocol import SerialProtocol
 from DataLogger import dataLogger
 from controllerapi import ROB311BTController
-# from pyPS4Controller.controller import Controller
+from pyPS4Controller.controller import Controller
 # ---------------------------------------------------------------------------
 """
 ROB 311 - Ball-bot Stability Controller Walkthrough [Kp]
@@ -38,6 +38,7 @@ JOYSTICK_SCALE = 32767
 
 FREQ = 200
 DT = 1/FREQ
+COUNTER = 0
 
 # Version of the SoftRealtimeLoop library
 __version__ = "1.0.0"
@@ -243,17 +244,20 @@ MAX_PLANAR_DUTY = 0.8
 # --------------------------------------------------------------------------
 
 # Proportional gains for the stability controllers (X-Z and Y-Z plane)
+KP_THETA_X = 9.3                                  # Adjust until the system balances
+KP_THETA_Y = 9.3                                  # Adjust until the system balances
+Ki_x = 0.07
+Ki_y = 0.07
 
-KP_THETA_X =  8                                  # Adjust until the system balances
-KP_THETA_Y = 8                                  # Adjust until the system balances
-Ki_x = 5
-Ki_y = 5
-
+# KP_THETA_X =  0                                 # Adjust until the system balances
+# KP_THETA_Y = 0                                  # Adjust until the system balances
+# Ki_x = 0
+# Ki_y = 0
 # ---------------------------------------------------------------------------
 
 def compute_motor_torques(Tx, Ty, Tz):
     '''
-    Parameters:
+    Parameters:7
     ----------
     Tx: Torque along x-axis
     Ty: Torque along y-axis
@@ -277,11 +281,21 @@ def compute_motor_torques(Tx, Ty, Tz):
     T2: Motor Torque 2
     T3: Motor Torque 3
     '''
+    beta = (90 + 4.36) * np.pi / 180
 
+
+    # Original:
     T1 = (-0.3333) * (Tz - (2.8284 * Ty))
     T2 = (-0.3333) * (Tz + (1.4142 * (Ty + 1.7320 * Tx)))
     T3 = (-0.3333) * (Tz + (1.4142 * (Ty - 1.7320 * Tx)))
 
+    # With beta
+    # T1 = 1
+    # T1 = (-0.3333) * (Tz + (2.8284 * ((np.cos(beta) * Tx) - (np.sin(beta) * Ty))))
+    # T2 = (-0.3333) * (Tz + (1.4142 * (np.sin(beta) * (np.sqrt(3) * Tx + Ty) + np.cos(beta) * (-Tx + np.sqrt(3) * Ty))))
+    # T3 = (-0.3333) * (Tz + (1.4142 * (np.sin(beta) * (-np.sqrt(3) * Tx + Ty) - np.cos(beta) * (Tx + np.sqrt(3) * Ty))))
+    # T3 = (-0.3333) * (Tz + (1.4142 * (np.sin(beta) * (-np.sqrt(3) * Tx + Ty) - np.cos(beta) * (Tx + np.sqrt(3) * Ty))
+    # T2 = (-0.3333) * (Tz + (1.4142 * (np.sin(beta) * (np.sqrt(3) * Tx + Ty) - np.cos(beta) * (-Tx + np.sqrt(3) * Ty))
     return T1, T2, T3
 
 # ---------------------------------------------------------------------------
@@ -388,19 +402,66 @@ if __name__ == "__main__":
         error_x_sum = error_x + error_x_sum
         error_y_sum = error_y + error_y_sum
 
+        # range
+        # if theta_x > -.018 and theta_x <.018:
+        #     print("x reset")
+        #     error_x_sum = 0
+        # if theta_y > -.018 and theta_y <.018:
+        #     print("y reset")
+        #     error_y_sum = 0
+
+        #counter
+        # COUNTER = COUNTER % 4000
+        # if COUNTER == 0:
+        #     error_y_sum = 0
+        #     error_x_sum = 0
+        # else:
+        #     COUNTER = COUNTER + 1
+
+        Ti_x = Ki_x * error_x_sum
+        Ti_y = Ki_y * error_y_sum
+
+        if Ti_x > .1:
+            Ti_x = .1
+        elif Ti_x < -.1:
+            Ti_x = -.1
+
+        if Ti_y > .1:
+            Ti_y = .1
+        elif Ti_y < -.1:
+            Ti_y = -.1
+
+
+        if error_x_sum > 3.6:
+            error_x_sum = 3.6
+        elif error_x_sum < -3.6:
+            error_x_sum = -3.6
+
+        if error_y_sum > 3.6:
+            error_y_sum = 3.6
+        elif error_y_sum < -3.6:
+            error_y_sum = -3.6
+
+
         # ---------------------------------------------------------
         # Compute motor torques (T1, T2, and T3) with Tx, Ty, and Tz
 
         # Proportional controller
-        Tx = 0
-        Ty = 0 
-      #  Tx = KP_THETA_X * error_x
-       # Ty = KP_THETA_Y * error_y
-        # Tx = KP_THETA_X * error_x + Ki_x * error_x_sum
-        # Ty = KP_THETA_Y * error_y + Ki_y * error_y_sum
-        # Tz = rob311_bt_controller.tz_demo_1
-        Tz = 3
-        print("Tz Demo 1: ", rob311_bt_controller.tz_demo_1)
+        # Tx = 0
+        # Ty = .5
+        Tx = KP_THETA_X * error_x + Ti_x
+        Ty = KP_THETA_Y * error_y + Ti_y
+
+        # Tx = 0
+        # Ty = 0
+        print("x error sum: ", error_x_sum)
+        print("y error sum: ", error_y_sum)
+
+        # Tx = 0
+        # Ty = 0
+        Tz = rob311_bt_controller.tz_demo_2
+        # Tz = 1
+        print("Tz Demo 1: ", rob311_bt_controller.tz_demo_2)
 
         # ---------------------------------------------------------
         # Saturating the planar torques 
@@ -429,7 +490,7 @@ if __name__ == "__main__":
         commands['motor_3_duty'] = T3  
 
         # Construct the data matrix for saving - you can add more variables by replicating the format below
-        data = [i] + [t_now] + [theta_x] + [theta_y]  + [theta_z] + [T1] + [T2] + [T3] + [phi_x] + [phi_y] + [phi_z] + [psi_1] + [psi_2] + [psi_3]
+        data = [i] + [t_now] + [theta_x] + [theta_y]  + [theta_z] + [T1] + [T2] + [T3] + [phi_x] + [phi_y] + [phi_z] + [psi_1] + [psi_2] + [psi_3]  + [error_x] + [error_y] + [error_x_sum] + [error_y_sum] + [KP_THETA_X * error_x] + [KP_THETA_Y * error_y] + [Ki_x * error_x_sum] + [Ki_y * error_y_sum]
         dl.appendData(data)
 
         print("Iteration no. {}, THETA X: {:.2f}, THETA Y: {:.2f}".format(i, theta_x, theta_y))
