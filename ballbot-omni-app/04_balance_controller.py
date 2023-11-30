@@ -244,11 +244,13 @@ MAX_PLANAR_DUTY = 0.8
 # --------------------------------------------------------------------------
 
 # Proportional gains for the stability controllers (X-Z and Y-Z plane)
-KP_THETA_X = 9.3                                  # Adjust until the system balances
-KP_THETA_Y = 9.3                                  # Adjust until the system balances
-Ki_x = 0.07
-Ki_y = 0.07
+KP_THETA_X = 9.08                                  # Adjust until the system balances
+KP_THETA_Y = 9.08                                  # Adjust until the system balances
+Ki_x = 0.03
+Ki_y = 0.03
 
+KP_VELOCITY_X = .1
+KP_VELOCITY_Y = .1
 # KP_THETA_X =  0                                 # Adjust until the system balances
 # KP_THETA_Y = 0                                  # Adjust until the system balances
 # Ki_x = 0
@@ -302,6 +304,9 @@ def compute_motor_torques(Tx, Ty, Tz):
 rob311_bt_controller = ROB311BTController(interface="/dev/input/js0")
 rob311_bt_controller_thread = threading.Thread(target=rob311_bt_controller.listen, args=(10,))
 rob311_bt_controller_thread.start()
+
+# def compute_velocities(psi_1, psi_2, psi_3):
+#     phi_1 = sqrt(2/3) * (Rw / Rk) * () 
 
 def compute_phi(psi_1, psi_2, psi_3):
     '''
@@ -370,6 +375,8 @@ if __name__ == "__main__":
     print('Beginning program!')
     i = 0
 
+    phi_x_old, phi_y_old, phi_z_old = compute_phi(psi_1, psi_2, psi_3)
+
 
     for t in SoftRealtimeLoop(dt=DT, report=True):
         try:
@@ -417,6 +424,17 @@ if __name__ == "__main__":
         #     error_x_sum = 0
         # else:
         #     COUNTER = COUNTER + 1
+        # velocity computations
+        phi_x_new, phi_y_new, phi_z_new = compute_phi(psi_1, psi_2, psi_3)
+
+        # V_x = (phi_x_new - phi_x_old) * .11925 *200
+        # V_y = (phi_y_new - phi_y_old) * .11925 *200
+
+        # V_x_goal = 0
+        # V_y_goal = 0
+
+        # V_x_err = V_x_goal - V_x
+        # V_y_err = V_y_goal - V_y
 
         Ti_x = Ki_x * error_x_sum
         Ti_y = Ki_y * error_y_sum
@@ -451,17 +469,23 @@ if __name__ == "__main__":
         # Ty = .5
         Tx = KP_THETA_X * error_x + Ti_x
         Ty = KP_THETA_Y * error_y + Ti_y
+        # Tx = KP_THETA_X * error_x + Ti_x - KP_VELOCITY_X * V_x_err
+        # Ty = KP_THETA_Y * error_y + Ti_y - KP_VELOCITY_Y * V_y_err
 
         # Tx = 0
         # Ty = 0
         print("x error sum: ", error_x_sum)
         print("y error sum: ", error_y_sum)
 
-        # Tx = 0
+        # Tx = 0    
         # Ty = 0
         Tz = rob311_bt_controller.tz_demo_2
         # Tz = 1
         print("Tz Demo 1: ", rob311_bt_controller.tz_demo_2)
+        # print("Velocities", V_x, V_y)
+        # print("V_x error sum: ", V_x_err)
+        # print("V_y error sum: ", V_y_err)
+
 
         # ---------------------------------------------------------
         # Saturating the planar torques 
@@ -471,6 +495,9 @@ if __name__ == "__main__":
 
         if np.abs(Ty) > MAX_PLANAR_DUTY:
             Ty = np.sign(Ty) * MAX_PLANAR_DUTY
+
+        phi_x_old = phi_x_new
+        phi_y_old = phi_y_new
 
         # ---------------------------------------------------------
 
